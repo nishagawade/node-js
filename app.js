@@ -4,8 +4,16 @@ const User = require('./models/User.js');
 const app = express();
 const bcrypt = require('bcrypt')
 const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
+const cors = require("cors");
+
+const {userAuth }  = require('./middlewares/auth')
+
 
 app.use(express.json()) //will convert json into javascript object
+app.use(cookieParser());
+
+
 
 app.listen(3000 , ()=>{
     console.log("server running successfully")
@@ -146,10 +154,27 @@ app.post('/login', async(req, res)=>{
         throw new Error("Invalid credentials")
     }
 
-    const isPasswordValid = bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(password, user.password);
 
-    if(!isPasswordValid){
-        throw new Error("Invalid password")
+    if(isPasswordValid){
+
+        const token = await jwt.sign({_id : user._id}, 'DEVTINDER@5267YEUNFHETY' , {
+            expiresIn : '8h'
+        })
+        console.log("token", token)
+
+        // res.cookie("token", token);
+        res.cookie("token", token, {
+            httpOnly: true, 
+            secure: process.env.NODE_ENV === "production", 
+            sameSite: "strict",
+            maxAge: 8 * 60 * 60 * 1000 // 8 hours
+        });
+        console.log("cookie", req.cookies)
+       
+       
+    }else{
+        throw new Error("Invalid credentials")
     }
 
     res.json({
@@ -162,6 +187,33 @@ app.post('/login', async(req, res)=>{
 
     
 
+})
+
+//get profile 
+
+app.get('/profileView', userAuth,  async(req, res)=>{
+    //while getting any request, the token will be verified , whether who is the user
+    // const cookie = req.cookies;
+    // const {token} = cookie
+    // const decodedMessage = await jwt.verify(token, 'DEVTINDER@5267YEUNFHETY');
+    // const {_id} = decodedMessage;
+
+    try{
+        const userId = await User.findById(_id);
+    res.send(userId)
+    }catch(err){
+       res.status(400).send("something went wrong")
+    }
+
+   
+
+})
+
+//logout api
+
+app.post('/logout', async(req, res)=>{
+
+    const userId = req.user
 })
 
 
